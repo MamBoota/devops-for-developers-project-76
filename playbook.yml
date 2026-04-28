@@ -1,0 +1,6 @@
+---
+- name: Deploy Redmine to app servers
+  hosts: webservers
+  become: true
+  roles:
+    - role: redmine
