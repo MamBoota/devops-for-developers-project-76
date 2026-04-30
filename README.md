@@ -6,6 +6,27 @@
 This repository contains an Ansible setup for deploying Redmine to two app servers
 behind a load balancer.
 
+## Current project setup (actual)
+
+Production-like stack for this project is split into two parts:
+
+- Local infrastructure (Multipass on your machine):
+  - `app-1`, `app-2` - Redmine app nodes
+  - `db-1` - PostgreSQL
+  - `lb-1` - Nginx load balancer
+- Public relay:
+  - external VPS with public IP and Nginx
+  - domain `myproj76.ru` points to VPS
+  - reverse SSH tunnel forwards VPS traffic to local `lb-1`
+
+### Important limitation
+
+App VMs and DB are local, so they depend on the host device and network:
+
+- if your laptop/PC is off, local VMs are unavailable;
+- if reverse tunnel is down, public access from the internet is unavailable;
+- internet visibility is provided by relay, but service data plane is still local.
+
 ### Prerequisites
 
 - Three Ubuntu servers accessible over SSH (`app-1`, `app-2`, `db-1`)
@@ -73,7 +94,18 @@ Playbook also performs post-deploy checks on each server:
 ```bash
 make syntax-check
 make lint
+make run
+make status
+make test
+make stop
 ```
+
+### Public relay commands
+
+- `make run` - start reverse relay tunnel (`Mac -> VPS -> lb-1`)
+- `make status` - check relay process and HTTP status codes
+- `make test` - run external HTTPS checks for `myproj76.ru`
+- `make stop` - stop relay tunnel
 
 ### Project structure
 
