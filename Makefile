@@ -21,7 +21,7 @@ ping-all:
 	ansible all -m ping
 
 prepare:
-	ansible-playbook playbook.yml
+	ansible-playbook playbook-prepare.yml
 
 deploy:
 	ansible-playbook playbook.yml
@@ -36,9 +36,10 @@ deploy-all:
 	ansible-playbook site.yml
 
 lint:
-	ansible-lint playbook.yml playbook-db.yml playbook-lb.yml site.yml
+	ansible-lint playbook-prepare.yml playbook.yml playbook-db.yml playbook-lb.yml site.yml
 
 syntax-check:
+	ansible-playbook --syntax-check playbook-prepare.yml
 	ansible-playbook --syntax-check playbook.yml
 	ansible-playbook --syntax-check playbook-db.yml
 	ansible-playbook --syntax-check playbook-lb.yml
@@ -106,9 +107,18 @@ logs:
 
 test:
 	@echo "Testing https://$(DOMAIN) ..."
-	@echo "Warm-up request ..."
-	@curl --max-time 8 -s -o /dev/null "https://$(DOMAIN)" || true
-	@sleep 1
+	@echo "Waiting for first healthy response ..."
+	@ready=0; \
+	for i in {1..15}; do \
+		code=$$(curl --max-time 8 -s -o /dev/null -w "%{http_code}" "https://$(DOMAIN)"); \
+		echo "warmup $$i:$$code"; \
+		if [[ "$$code" == "200" ]]; then ready=1; break; fi; \
+		sleep 1; \
+	done; \
+	if [[ $$ready -ne 1 ]]; then \
+		echo "FAIL: endpoint did not become healthy during warm-up"; \
+		exit 1; \
+	fi
 	@ok=1; \
 	for i in {1..10}; do \
 		code=$$(curl --max-time 8 -s -o /dev/null -w "%{http_code}" "https://$(DOMAIN)"); \

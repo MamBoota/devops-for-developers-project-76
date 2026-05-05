@@ -1,12 +1,12 @@
 upstream redmine_backend {
 {% for host in groups['webservers'] %}
-    server {{ hostvars[host].ansible_host }}:{{ redmine_host_port }};
+    server {{ hostvars[host].ansible_host }}:{{ redmine_port }};
 {% endfor %}
 }
 
 server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
+    listen {{ redmine_port }} default_server;
+    listen [::]:{{ redmine_port }} default_server;
     server_name _;
 
     location / {

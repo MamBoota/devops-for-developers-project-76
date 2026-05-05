@@ -5,20 +5,6 @@
       - redmine_db_adapter in ['postgresql', 'mysql']
     fail_msg: "redmine_db_adapter must be either 'postgresql' or 'mysql'"
 
-- name: Install Docker and Python dependencies
-  ansible.builtin.apt:
-    name:
-      - docker.io
-      - python3-docker
-    state: present
-    update_cache: true
-
-- name: Ensure Docker service is enabled and started
-  ansible.builtin.service:
-    name: docker
-    state: started
-    enabled: true
-
 - name: Create Redmine working directory
   ansible.builtin.file:
     path: /opt/redmine
@@ -39,18 +25,18 @@
     restart_policy: "{{ redmine_restart_policy }}"
     env_file: /opt/redmine/.env
     published_ports:
-      - "{{ redmine_host_port }}:{{ redmine_container_port }}"
+      - "{{ redmine_port }}:{{ redmine_container_port }}"
     state: started
 
 - name: Wait until Redmine port is reachable
   ansible.builtin.wait_for:
     host: 127.0.0.1
-    port: "{{ redmine_host_port }}"
+    port: "{{ redmine_port }}"
     timeout: 60
 
 - name: Check Redmine health endpoint
   ansible.builtin.uri:
-    url: "http://127.0.0.1:{{ redmine_host_port }}/"
+    url: "http://127.0.0.1:{{ redmine_port }}/"
     method: GET
     return_content: false
     status_code: [200, 301, 302]

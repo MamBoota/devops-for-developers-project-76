@@ -1,12 +1,12 @@
 ### Hexlet tests and linter status:
 [![Actions Status](https://github.com/MamBoota/devops-for-developers-project-76/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/MamBoota/devops-for-developers-project-76/actions)
 
-## Server Preparation for Deploy
+## Redmine Deployment
 
-This project prepares `webservers` hosts for application deployment:
-- installs `pip` via Ansible Galaxy role
-- installs Docker engine via Ansible Galaxy role
-- installs Python module `docker` via `pip`
+This project deploys Redmine in Docker on two app servers and exposes it through
+an Nginx load balancer and domain.
+
+Live URL: [https://myproj76.ru](https://myproj76.ru)
 
 ## Current project setup (actual)
 
@@ -43,12 +43,14 @@ make install
 
 ### 2. Prepare inventory and variables
 
-Edit `inventory.ini` in the project root and set your two web servers:
-- aliases (`web-1`, `web-2`)
-- `ansible_host`
-- `ansible_user`
+Edit `inventory.ini` in the project root and set host addresses/users for:
+- `webservers` (`web-1`, `web-2`)
+- `dbservers` (`db-1`)
+- `lbservers` (`lb-1`)
 
-Set shared variables in `group_vars/all.yml`.
+Set shared variables in `group_vars/all.yml`, especially:
+- `redmine_port` - external app port used by app containers and load balancer
+- DB variables (`redmine_db_*`)
 
 ### 3. Check connectivity
 
@@ -56,13 +58,58 @@ Set shared variables in `group_vars/all.yml`.
 make ping-all
 ```
 
-### 4. Prepare servers
+### 4. Prepare servers (one-time)
 
 ```bash
 make prepare
 ```
 
-This command runs root `playbook.yml` with `hosts: all`.
+This installs pip/docker dependencies through Galaxy roles (`playbook-prepare.yml`).
+
+### 5. Deploy database
+
+```bash
+make deploy-db
+```
+
+### 6. Deploy Redmine app
+
+```bash
+make deploy
+```
+
+`make deploy` runs root `playbook.yml` and only deploys application on `webservers`
+without server preparation changes.
+
+### 7. Deploy/reload load balancer
+
+```bash
+make deploy-lb
+```
+
+### 8. Full deploy
+
+```bash
+make deploy-all
+```
+
+### 9. HTTPS on domain
+
+Public HTTPS is terminated on the external VPS relay (Nginx + Let's Encrypt).
+
+Example commands on VPS:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d myproj76.ru --non-interactive --agree-tos --register-unsafely-without-email --redirect
+```
+
+After certificate issue, verify:
+
+```bash
+curl -I https://myproj76.ru
+```
 
 ### Additional commands
 
@@ -70,13 +117,17 @@ This command runs root `playbook.yml` with `hosts: all`.
 make syntax-check
 make lint
 make prepare
+make deploy-db
+make deploy
+make deploy-lb
+make deploy-all
 make run
 make status
 make test
 make stop
 ```
 
-### Public relay commands
+### Public relay commands (for local VM exposure)
 
 - `make run` - start reverse relay tunnel (`Mac -> VPS -> lb-1`)
 - `make status` - check relay process and HTTP status codes
@@ -85,7 +136,8 @@ make stop
 
 ### Project structure
 
-- `playbook.yml` — entry point for server preparation (`hosts: all`)
+- `playbook.yml` — Redmine deploy playbook (`webservers`)
+- `playbook-prepare.yml` — server preparation playbook (`hosts: all`)
 - `inventory.ini` — inventory with `webservers` group
 - `group_vars/all.yml` — shared variables
 - `playbook-db.yml` — PostgreSQL setup for Redmine database

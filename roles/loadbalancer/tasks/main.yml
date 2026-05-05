@@ -40,7 +40,7 @@
 
 - name: Check LB endpoint
   ansible.builtin.uri:
-    url: http://127.0.0.1/
+    url: "http://127.0.0.1:{{ redmine_port }}/"
     method: GET
     status_code: [200, 301, 302]
   register: lb_healthcheck

@@ -1,17 +1,6 @@
 ---
-- name: Prepare servers for Docker deployment
-  hosts: all
+- name: Deploy Redmine application
+  hosts: webservers
   become: true
-  vars:
-    pip_install_packages:
-      - name: docker
-    docker_service_manage: false
-  pre_tasks:
-    - name: Force IPv4 for apt on servers
-      ansible.builtin.copy:
-        dest: /etc/apt/apt.conf.d/99force-ipv4
-        content: 'Acquire::ForceIPv4 "true";'
-        mode: "0644"
   roles:
-    - role: geerlingguy.pip
-    - role: geerlingguy.docker
+    - role: redmine
