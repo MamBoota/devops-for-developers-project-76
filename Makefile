@@ -4,17 +4,24 @@ DOMAIN ?= myproj76.ru
 VPS_IP ?= 168.222.143.207
 SSH_KEY ?= /Users/mamboota/.ssh/multipass_ansible
 LB_ORIGIN ?= 192.168.2.5:80
+SSH_USER ?= ubuntu
+APP1_IP ?= 192.168.2.2
+APP2_IP ?= 192.168.2.3
+LB_IP ?= 192.168.2.5
 
-.PHONY: install ping ping-all deploy deploy-db deploy-lb deploy-all lint syntax-check run stop status logs test
+.PHONY: install ping ping-all prepare deploy deploy-db deploy-lb deploy-all lint syntax-check run stop status logs test
 
 install:
-	ansible-galaxy collection install -r requirements.yml
+	ansible-galaxy install -r requirements.yml
 
 ping:
 	ansible webservers -m ping
 
 ping-all:
 	ansible all -m ping
+
+prepare:
+	ansible-playbook playbook.yml
 
 deploy:
 	ansible-playbook playbook.yml
@@ -38,6 +45,28 @@ syntax-check:
 	ansible-playbook --syntax-check site.yml
 
 run:
+	@echo "Preparing local app/lb services before tunnel ..."
+	@for host in $(APP1_IP) $(APP2_IP); do \
+		echo "Ensuring Docker is up on $$host ..."; \
+		ssh -i "$(SSH_KEY)" -o StrictHostKeyChecking=no $(SSH_USER)@$$host \
+			"sudo systemctl start docker.socket || true; sudo systemctl start docker || true"; \
+	done
+	@echo "Reloading nginx on $(LB_IP) ..."
+	@ssh -i "$(SSH_KEY)" -o StrictHostKeyChecking=no $(SSH_USER)@$(LB_IP) \
+		"sudo systemctl reload nginx || sudo systemctl restart nginx"
+	@echo "Waiting for local LB to return 200 ..."
+	@ok=0; \
+	for i in {1..15}; do \
+		code=$$(ssh -i "$(SSH_KEY)" -o StrictHostKeyChecking=no $(SSH_USER)@$(LB_IP) \
+			"curl --max-time 5 -s -o /dev/null -w '%{http_code}' http://127.0.0.1/"); \
+		echo "$$i:$$code"; \
+		if [[ "$$code" == "200" ]]; then ok=1; break; fi; \
+		sleep 1; \
+	done; \
+	if [[ $$ok -ne 1 ]]; then \
+		echo "Local LB is not healthy (expected 200)."; \
+		exit 1; \
+	fi
 	@echo "Starting reverse relay tunnel to $(VPS_IP) ..."
 	@pkill -f "ssh -i $(SSH_KEY).*root@$(VPS_IP)" 2>/dev/null || true
 	@nohup ssh -i "$(SSH_KEY)" \

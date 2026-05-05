@@ -1,10 +1,12 @@
 ### Hexlet tests and linter status:
 [![Actions Status](https://github.com/MamBoota/devops-for-developers-project-76/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/MamBoota/devops-for-developers-project-76/actions)
 
-## Deploy Redmine with Ansible
+## Server Preparation for Deploy
 
-This repository contains an Ansible setup for deploying Redmine to two app servers
-behind a load balancer.
+This project prepares `webservers` hosts for application deployment:
+- installs `pip` via Ansible Galaxy role
+- installs Docker engine via Ansible Galaxy role
+- installs Python module `docker` via `pip`
 
 ## Current project setup (actual)
 
@@ -41,16 +43,12 @@ make install
 
 ### 2. Prepare inventory and variables
 
-Copy example files and fill them with your infrastructure values:
+Edit `inventory.ini` in the project root and set your two web servers:
+- aliases (`web-1`, `web-2`)
+- `ansible_host`
+- `ansible_user`
 
-```bash
-cp inventory/hosts.ini.example inventory/hosts.ini
-cp group_vars/all.yml.example group_vars/all.yml
-```
-
-Set:
-- server IPs and SSH key path in `inventory/hosts.ini`
-- DB host, DB port, DB credentials in `group_vars/all.yml`
+Set shared variables in `group_vars/all.yml`.
 
 ### 3. Check connectivity
 
@@ -58,42 +56,20 @@ Set:
 make ping-all
 ```
 
-### 4. Deploy database host (db-1)
+### 4. Prepare servers
 
 ```bash
-make deploy-db
+make prepare
 ```
 
-### 5. Deploy Redmine app hosts (app-1/app-2)
-
-```bash
-make deploy
-```
-
-### 6. Deploy load balancer host (lb-1)
-
-```bash
-make deploy-lb
-```
-
-Or run full infrastructure deployment in one command:
-
-```bash
-make deploy-all
-```
-
-After successful deployment, each server runs Redmine in Docker and listens on port `80`.
-Nginx load balancer proxies requests to both app hosts.
-Open `http://<lb-1-ip>/` to access the service through the balancer.
-Playbook also performs post-deploy checks on each server:
-- waits until Redmine port is reachable
-- calls `http://127.0.0.1/` and expects HTTP `200`, `301`, or `302`
+This command runs root `playbook.yml` with `hosts: all`.
 
 ### Additional commands
 
 ```bash
 make syntax-check
 make lint
+make prepare
 make run
 make status
 make test
@@ -109,7 +85,9 @@ make stop
 
 ### Project structure
 
-- `playbook.yml` — entry point for deployment
+- `playbook.yml` — entry point for server preparation (`hosts: all`)
+- `inventory.ini` — inventory with `webservers` group
+- `group_vars/all.yml` — shared variables
 - `playbook-db.yml` — PostgreSQL setup for Redmine database
 - `playbook-lb.yml` — Nginx load balancer setup
 - `site.yml` — full deployment (database + app + load balancer)
