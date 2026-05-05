@@ -21,7 +21,7 @@
   community.docker.docker_container:
     name: "{{ redmine_container_name }}"
     image: "{{ redmine_image }}"
-    pull: true
+    pull: false
     restart_policy: "{{ redmine_restart_policy }}"
     env_file: /opt/redmine/.env
     published_ports:

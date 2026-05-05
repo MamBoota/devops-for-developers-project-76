@@ -4,3 +4,4 @@
   become: true
   roles:
     - role: redmine
+    - role: datadog_agent

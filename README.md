@@ -126,6 +126,23 @@ After certificate issue, verify:
 curl -I https://myproj76.ru
 ```
 
+### 10. Datadog monitoring on webservers
+
+Datadog agent is installed during app deploy (`playbook.yml`) only for `webservers`.
+
+Required secret:
+- `vault_datadog_api_key` in `group_vars/webservers/vault.yml` (encrypted with Ansible Vault)
+
+Configured check:
+- `http_check` to `http://127.0.0.1:{{ redmine_port }}/` on each app server
+
+Set or update secrets:
+
+```bash
+make vault-edit-web
+make vault-view-web
+```
+
 ### Additional commands
 
 ```bash
