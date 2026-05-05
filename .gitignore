@@ -5,3 +5,4 @@
 # Local Ansible inventory and secrets
 inventory/hosts.ini
 group_vars/all.yml
+.vault_pass

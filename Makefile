@@ -8,8 +8,10 @@ SSH_USER ?= ubuntu
 APP1_IP ?= 192.168.2.2
 APP2_IP ?= 192.168.2.3
 LB_IP ?= 192.168.2.5
+VAULT_PASSWORD_FILE ?= .vault_pass
+VAULT_ARGS ?= --vault-password-file $(VAULT_PASSWORD_FILE)
 
-.PHONY: install ping ping-all prepare deploy deploy-db deploy-lb deploy-all lint syntax-check run stop status logs test
+.PHONY: install ping ping-all prepare deploy deploy-db deploy-lb deploy-all lint syntax-check vault-edit-web vault-view-web vault-edit-db vault-view-db run stop status logs test
 
 install:
 	ansible-galaxy install -r requirements.yml
@@ -24,26 +26,38 @@ prepare:
 	ansible-playbook playbook-prepare.yml
 
 deploy:
-	ansible-playbook playbook.yml
+	ansible-playbook $(VAULT_ARGS) playbook.yml
 
 deploy-db:
-	ansible-playbook playbook-db.yml
+	ansible-playbook $(VAULT_ARGS) playbook-db.yml
 
 deploy-lb:
 	ansible-playbook playbook-lb.yml
 
 deploy-all:
-	ansible-playbook site.yml
+	ansible-playbook $(VAULT_ARGS) site.yml
 
 lint:
 	ansible-lint playbook-prepare.yml playbook.yml playbook-db.yml playbook-lb.yml site.yml
 
 syntax-check:
 	ansible-playbook --syntax-check playbook-prepare.yml
-	ansible-playbook --syntax-check playbook.yml
-	ansible-playbook --syntax-check playbook-db.yml
+	ansible-playbook $(VAULT_ARGS) --syntax-check playbook.yml
+	ansible-playbook $(VAULT_ARGS) --syntax-check playbook-db.yml
 	ansible-playbook --syntax-check playbook-lb.yml
-	ansible-playbook --syntax-check site.yml
+	ansible-playbook $(VAULT_ARGS) --syntax-check site.yml
+
+vault-edit-web:
+	ansible-vault edit $(VAULT_ARGS) group_vars/webservers/vault.yml
+
+vault-view-web:
+	ansible-vault view $(VAULT_ARGS) group_vars/webservers/vault.yml
+
+vault-edit-db:
+	ansible-vault edit $(VAULT_ARGS) group_vars/dbservers/vault.yml
+
+vault-view-db:
+	ansible-vault view $(VAULT_ARGS) group_vars/dbservers/vault.yml
 
 run:
 	@echo "Preparing local app/lb services before tunnel ..."
@@ -69,7 +83,7 @@ run:
 		exit 1; \
 	fi
 	@echo "Starting reverse relay tunnel to $(VPS_IP) ..."
-	@pkill -f "ssh -i $(SSH_KEY).*root@$(VPS_IP)" 2>/dev/null || true
+	@pkill -f "root@$(VPS_IP)" 2>/dev/null || true
 	@nohup ssh -i "$(SSH_KEY)" \
 		-o ExitOnForwardFailure=yes \
 		-o ServerAliveInterval=30 \
@@ -78,15 +92,15 @@ run:
 		-N -R 127.0.0.1:18080:$(LB_ORIGIN) \
 		root@$(VPS_IP) >/tmp/vps-relay.log 2>&1 &
 	@sleep 2
-	@pgrep -fl "ssh -i $(SSH_KEY).*root@$(VPS_IP)" >/dev/null && \
+	@pgrep -fl "root@$(VPS_IP)" >/dev/null && \
 		echo "Relay tunnel is running." || \
 		(echo "Relay tunnel failed to start. Check /tmp/vps-relay.log"; exit 1)
 
 stop:
 	@echo "Stopping reverse relay tunnel to $(VPS_IP) ..."
-	@pkill -f "ssh -i $(SSH_KEY).*root@$(VPS_IP)" 2>/dev/null || true
+	@pkill -f "root@$(VPS_IP)" 2>/dev/null || true
 	@sleep 1
-	@if pgrep -fl "ssh -i $(SSH_KEY).*root@$(VPS_IP)" >/dev/null; then \
+	@if pgrep -fl "root@$(VPS_IP)" >/dev/null; then \
 		echo "Relay tunnel is still running."; \
 		exit 1; \
 	else \
@@ -95,7 +109,7 @@ stop:
 
 status:
 	@echo "Relay process:"
-	@pgrep -fl "ssh -i $(SSH_KEY).*root@$(VPS_IP)" || echo "not running"
+	@pgrep -fl "root@$(VPS_IP)" || echo "not running"
 	@echo "Domain check:"
 	@curl --max-time 8 -s -o /dev/null -w "https://$(DOMAIN) -> %{http_code}\n" "https://$(DOMAIN)" || true
 	@echo "VPS relay check:"

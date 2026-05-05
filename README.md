@@ -50,7 +50,22 @@ Edit `inventory.ini` in the project root and set host addresses/users for:
 
 Set shared variables in `group_vars/all.yml`, especially:
 - `redmine_port` - external app port used by app containers and load balancer
-- DB variables (`redmine_db_*`)
+- DB non-secret variables (`redmine_db_host`, `redmine_db_port`, `redmine_db_name`, `redmine_db_user`)
+
+Store DB password in encrypted Vault files:
+- `group_vars/webservers/vault.yml`
+- `group_vars/dbservers/vault.yml`
+
+And expose decrypted values via:
+- `group_vars/webservers/vars.yml`
+- `group_vars/dbservers/vars.yml`
+
+Create a local vault password file (not committed):
+
+```bash
+printf 'your-strong-vault-password\n' > .vault_pass
+chmod 600 .vault_pass
+```
 
 ### 3. Check connectivity
 
@@ -125,6 +140,10 @@ make run
 make status
 make test
 make stop
+make vault-edit-web
+make vault-view-web
+make vault-edit-db
+make vault-view-db
 ```
 
 ### Public relay commands (for local VM exposure)
