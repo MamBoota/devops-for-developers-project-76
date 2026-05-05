@@ -35,6 +35,7 @@
       curl --connect-timeout 10 --max-time 20 -fsSL https://keys.datadoghq.com/DATADOG_APT_KEY_382E94DE.public >> "$tmpkey"
       gpg --batch --yes --dearmor -o /usr/share/keyrings/datadog-archive-keyring.gpg "$tmpkey"
       rm -f "$tmpkey"
+  changed_when: false
   when: ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_major_version'] | int >= 24
 
 - name: Add Datadog apt repository (Ubuntu 24+)
